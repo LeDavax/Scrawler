@@ -1,0 +1,100 @@
+<app id="scrawler.mail" name="Scrawler Mail" version="0.1" actions="actions.lua">
+
+  <state>
+    <value id="draft.recipient" type="string" default="" />
+    <value id="draft.body" type="string" default="" />
+    <value id="draft.priority" type="string" default="High" />
+    <value id="draft.read_receipt" type="boolean" default="false" />
+    <value id="settings.notifications" type="boolean" default="true" />
+    <value id="settings.signature" type="boolean" default="false" />
+    <value id="stats.progress" type="number" default="75" />
+  </state>
+
+  <screen id="inbox" role="screen" label="Inbox" icon="inbox">
+
+    <component id="inbox-heading" role="heading" label="Messages" icon="mail" />
+
+    <group id="inbox-stats" role="group" label="Quick stats">
+      <component id="sent-badge" role="badge" label="42 sent" icon="send" />
+      <component id="storage-progress" role="progress" label="Storage" bind="stats.progress" />
+    </group>
+
+    <component id="inbox-list" role="list" label="Recent">
+      <component id="msg-1" role="list-item" label="Alice Martin" icon="user">
+        <action id="open_msg_1" handler="open_message" description="Open this conversation">
+          <param name="message_id" type="string" required="true" />
+        </action>
+      </component>
+      <component id="msg-2" role="list-item" label="Bob Johnson" icon="user">
+        <action id="open_msg_2" handler="open_message" description="Open this conversation">
+          <param name="message_id" type="string" required="true" />
+        </action>
+      </component>
+      <component id="msg-3" role="list-item" label="Newsletter" icon="mail" />
+    </component>
+
+    <component id="separator-1" role="separator" label="" />
+
+    <component id="compose" role="button" label="Compose" icon="pencil">
+      <action
+        id="compose_message"
+        handler="compose_message"
+        description="Open a new email draft">
+        <param
+          name="recipient"
+          type="string"
+          required="false"
+          description="Initial recipient of the draft" />
+      </action>
+    </component>
+
+    <view id="composer" role="dialog" label="New message">
+      <component id="recipient-field" role="text-input" label="To" bind="draft.recipient"
+                 placeholder="alice@example.com" />
+
+      <component id="priority-select" role="select" label="Priority" bind="draft.priority">
+        <component id="opt-low" role="option" label="Low" />
+        <component id="opt-normal" role="option" label="Normal" />
+        <component id="opt-high" role="option" label="High" />
+        <component id="opt-urgent" role="option" label="Urgent" />
+      </component>
+
+      <component id="body-field" role="text-area" label="Message" bind="draft.body"
+                 placeholder="Write your message here…" />
+
+      <component id="read-receipt-toggle" role="toggle" label="Request read receipt" bind="draft.read_receipt" />
+
+      <component id="send" role="button" label="Send" icon="send" variant="primary"
+                 aria-label="Send the composed email to the recipient">
+        <action id="send_message" handler="send_message" description="Send the current draft"
+                shortcut="cmd+return" />
+      </component>
+
+      <component id="discard" role="button" label="Discard" icon="x" variant="destructive"
+                 aria-label="Discard this draft and close the composer">
+        <action id="discard_draft" handler="discard_draft" description="Discard this draft"
+                shortcut="escape" />
+      </component>
+    </view>
+
+  </screen>
+
+  <screen id="settings" role="screen" label="Settings" icon="settings">
+
+    <component id="settings-heading" role="heading" label="Preferences" icon="settings" />
+
+    <component id="settings-card" role="card" label="Notifications" icon="bell">
+      <component id="notif-toggle" role="toggle" label="Enable notifications" bind="settings.notifications" />
+      <component id="sig-checkbox" role="checkbox" label="Include signature" bind="settings.signature" />
+    </component>
+
+    <component id="settings-sep" role="separator" label="" />
+
+    <component id="account-info" role="card" label="Account" icon="user">
+      <component id="account-label" role="label" label="user@scrawler.dev" icon="mail" />
+      <component id="plan-chip" role="chip" label="Pro plan" icon="zap" />
+    </component>
+
+  </screen>
+
+</app>

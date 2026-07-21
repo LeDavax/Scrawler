@@ -1,0 +1,134 @@
+app:
+  id: "com.scrawler.mail"
+  display_name: "Scrawler Mail"
+  icon: "app-icon.png"
+  version: "1.0.0"
+  build: "1.0.0"
+  copyright: "Copyright © 2026 Scrawler. All rights reserved."
+  author: "Scrawler"
+
+platforms:
+  macos:
+    bundle_id: "com.scrawler.mail"
+    category: "public.app-category.productivity"
+    minimum_version: "12.0"
+  windows:
+    app_id: "ScrawlerMail"
+    store_category: "Productivity"
+  linux:
+    desktop_id: "com.scrawler.mail"
+    categories: ["Office", "Network"]
+
+mcp:
+  port: 7080
+
+window:
+  width: 1024
+  height: 720
+  min_width: 480
+  min_height: 320
+  resizable: true
+  always_on_top: false
+  start_maximized: false
+  start_fullscreen: false
+
+theme: "light"
+
+font:
+  family: null
+  size_base: 14
+  size_heading: 18
+  size_title: 24
+  size_caption: 12
+
+colors:
+  bg_primary: "#FAFAFC"
+  bg_surface: "#FFFFFF"
+  bg_elevated: "#FFFFFF"
+  text_primary: "#1A1A2E"
+  text_secondary: "#6B7080"
+  text_on_accent: "#FFFFFF"
+  accent: "#2D5BE3"
+  accent_hover: "#1E4BD1"
+  accent_subtle: "#EBF0FD"
+  border: "#E8EAED"
+  error_text: "#DC2626"
+  error_bg: "#FEF2F2"
+  error_border: "#FECACA"
+  toast_success: "#059669"
+  toast_bg: "#1A1A2E"
+
+colors_dark:
+  bg_primary: "#0F0F14"
+  bg_surface: "#1A1A24"
+  bg_elevated: "#22222E"
+  text_primary: "#F0F0F5"
+  text_secondary: "#9A9AAA"
+  text_on_accent: "#FFFFFF"
+  accent: "#5B8DF8"
+  accent_hover: "#7AA5FA"
+  accent_subtle: "#1E293D"
+  border: "#2E2E3A"
+  error_text: "#F87171"
+  error_bg: "#2D1515"
+  error_border: "#5C2222"
+  toast_success: "#34D399"
+  toast_bg: "#1A1A2E"
+
+sidebar:
+  width: 220
+  bg: "#F3F4F6"
+  text: "#4B5063"
+  text_active: "#1A1A2E"
+  item_active_bg: "#FFFFFF"
+
+dialog:
+  bg: "#FFFFFF"
+  corner_radius: 16
+  margin: 28
+
+input:
+  bg: "#FFFFFF"
+  border: "#D1D5DB"
+  corner_radius: 8
+
+spacing:
+  content_margin_x: 40
+  content_margin_y: 32
+  titlebar_height: 32
+
+corner_radius:
+  button: 10
+  card: 12
+  badge: 6
+
+animations:
+  toast_duration: 3.5
+  dialog_open: 0.35
+  dialog_close: 0.2
+  screen_transition: 0.3
+  node_appear_stagger: 0.05
+  node_appear_duration: 0.35
+
+density: "comfortable"
+
+notifications:
+  position: "bottom-center"
+  max_visible: 3
+
+scrollbar:
+  width: 6
+  auto_hide: true
+
+shadows:
+  enabled: true
+  intensity: 0.08
+
+hover:
+  scale: 1.0
+  transition: 0.15
+
+focus_ring:
+  color: null
+  width: 2
+  offset: 2
