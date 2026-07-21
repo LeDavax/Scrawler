@@ -5,8 +5,6 @@
 //! becomes a typed semantic tree. Future milestones will wire up Lua handlers
 //! and expose that tree through MCP.
 
-// `pub mod` tells Rust that `src/manifest.rs` is part of the Scrawler library.
-// `pub` also makes it accessible from `main.rs` and other Rust crates.
 pub mod bundle;
 pub mod config;
 pub mod ipc;

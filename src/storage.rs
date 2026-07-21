@@ -1,25 +1,23 @@
-//! Stockage persistant par application.
+//! Per-app persistent storage.
 //!
-//! Les données sont écrites dans le répertoire standard de l'OS :
+//! Data directory per platform:
 //!   macOS   → ~/Library/Application Support/{app_id}/
 //!   Windows → %APPDATA%\{app_id}\
 //!   Linux   → ~/.local/share/{app_id}/
 //!
-//! Deux niveaux d'accès depuis Lua :
-//!   - KV   : clés/valeurs JSON dans `kv.json`, pour la config et l'état simple.
-//!   - File : fichiers arbitraires dans le même répertoire, sandboxés (pas de `..`).
+//! Two access layers from Lua:
+//!   - KV   : JSON key/value store in `kv.json`
+//!   - File : sandboxed file access (no `..` traversal)
 
 use serde_json::{Map, Value};
 use std::path::{Component, Path, PathBuf};
 
-/// Répertoire de données d'une application, résolu une seule fois au démarrage.
 #[derive(Clone)]
 pub struct AppStorage {
     pub(crate) dir: PathBuf,
 }
 
 impl AppStorage {
-    /// Construit l'instance et crée le répertoire s'il n'existe pas encore.
     pub fn new(app_id: &str) -> Self {
         let dir = data_dir(app_id);
         let _ = std::fs::create_dir_all(&dir);
@@ -73,11 +71,9 @@ impl AppStorage {
 
     // ─── File ─────────────────────────────────────────────────────────────────
 
-    /// Résout `relative` dans le répertoire de données, en refusant toute
-    /// tentative de sortir du sandbox (composants `..` ou chemins absolus).
+    /// Resolves a relative path inside the data directory, rejecting `..` and absolute paths.
     pub fn resolve(&self, relative: &str) -> Option<PathBuf> {
         let path = Path::new(relative);
-        // Refuser les chemins absolus et les composants remontants.
         for component in path.components() {
             match component {
                 Component::ParentDir | Component::RootDir | Component::Prefix(_) => return None,
@@ -134,14 +130,12 @@ impl AppStorage {
     }
 }
 
-/// Chemin du répertoire de données selon la plateforme.
 fn data_dir(app_id: &str) -> PathBuf {
     dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join(app_id)
 }
 
-// Extension locale pour convertir Value en Map.
 trait IntoObject {
     fn into_object(self) -> Option<Map<String, Value>>;
 }

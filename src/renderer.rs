@@ -1168,15 +1168,23 @@ impl SemanticApplication {
                             .strong(),
                     );
 
-                    // "AI Connector online" badge — shown only when the
-                    // MCP HTTP server is active.
                     if mcp_active {
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let badge_text = egui::RichText::new("● AI Connector online")
-                                .font(FontId::proportional(11.0))
-                                .color(accent);
-                            let badge = egui::Label::new(badge_text).sense(egui::Sense::click());
-                            if ui.add(badge).on_hover_text("Click for connection instructions").clicked() {
+                            let response = ui.horizontal(|ui| {
+                                let icon_ch = icon_char("zap").unwrap_or('⚡');
+                                ui.label(
+                                    egui::RichText::new(icon_ch.to_string())
+                                        .font(FontId::new(12.0, icon_family()))
+                                        .color(accent),
+                                );
+                                ui.label(
+                                    egui::RichText::new("Connecteur IA en ligne")
+                                        .font(FontId::proportional(11.0))
+                                        .color(accent),
+                                );
+                            }).response;
+                            let badge = response.interact(egui::Sense::click());
+                            if badge.on_hover_text("Paramètres de connexion").clicked() {
                                 self.mcp_modal_open = true;
                             }
                         });
@@ -1192,24 +1200,36 @@ impl SemanticApplication {
         let port = self.mcp_port;
         let url = format!("http://127.0.0.1:{port}/mcp");
         let app_name = self.manifest.name.clone();
+        let app_slug = app_name.to_lowercase().replace(' ', "-");
 
         let screen_rect = ctx.viewport_rect();
-        // Overlay
+
         egui::Area::new(egui::Id::new("mcp_modal_overlay"))
             .fixed_pos(screen_rect.min)
             .order(egui::Order::Foreground)
             .interactable(true)
             .show(ctx, |ui| {
                 let (_, response) = ui.allocate_exact_size(screen_rect.size(), egui::Sense::click());
-                ui.painter().rect_filled(screen_rect, 0.0,
-                    Color32::from_rgba_premultiplied(0, 0, 0, 140));
+                ui.painter().rect_filled(
+                    screen_rect,
+                    0.0,
+                    Color32::from_rgba_premultiplied(0, 0, 0, 140),
+                );
                 if response.clicked() {
                     self.mcp_modal_open = false;
                 }
             });
 
-        let modal_width = (screen_rect.width() * 0.55).clamp(420.0, 640.0);
+        let modal_width = (screen_rect.width() * 0.55).clamp(440.0, 580.0);
         let pal = self.palette().clone();
+        let icon_x = icon_char("x").unwrap_or('✕');
+        let icon_plug = icon_char("plug").unwrap_or('⚡');
+        let icon_terminal = icon_char("terminal").unwrap_or('>');
+        let icon_monitor = icon_char("monitor").unwrap_or('□');
+        let icon_globe = icon_char("globe").unwrap_or('○');
+        let icon_code = icon_char("code").unwrap_or('<');
+        let icon_copy = icon_char("copy").unwrap_or('⎘');
+        let icon_link = icon_char("link").unwrap_or('🔗');
 
         egui::Window::new("mcp_setup_modal")
             .title_bar(false)
@@ -1222,112 +1242,216 @@ impl SemanticApplication {
                 egui::Frame::new()
                     .fill(pal.bg_elevated)
                     .stroke(Stroke::new(1.0, pal.border))
-                    .corner_radius(CornerRadius::same(14))
-                    .inner_margin(Margin::same(24))
+                    .corner_radius(CornerRadius::same(self.cfg.corner_radius_card as u8))
+                    .inner_margin(Margin::same(28))
                     .shadow(egui::epaint::Shadow {
-                        offset: [0, 8].into(),
-                        blur: 32,
+                        offset: [0, 12].into(),
+                        blur: 40,
                         spread: 4,
-                        color: Color32::from_rgba_premultiplied(0, 0, 0, 30),
+                        color: Color32::from_rgba_premultiplied(0, 0, 0, 25),
                     }),
             )
             .show(ctx, |ui| {
-                // Header
+                // ── Header ──────────────────────────────────────────────
                 ui.horizontal(|ui| {
                     ui.label(
-                        egui::RichText::new("AI Connector")
-                            .font(FontId::proportional(17.0))
-                            .color(pal.text_primary)
-                            .strong(),
+                        egui::RichText::new(icon_plug.to_string())
+                            .font(FontId::new(18.0, icon_family()))
+                            .color(pal.accent),
                     );
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button(egui::RichText::new("✕").font(FontId::proportional(13.0))).clicked() {
+                    ui.add_space(6.0);
+                    ui.vertical(|ui| {
+                        ui.label(
+                            egui::RichText::new("Connecteur IA")
+                                .font(FontId::proportional(17.0))
+                                .color(pal.text_primary)
+                                .strong(),
+                        );
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "Connectez un agent IA à {app_name} via MCP."
+                            ))
+                            .font(FontId::proportional(13.0))
+                            .color(pal.text_secondary),
+                        );
+                    });
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+                        let close_btn = ui.add(
+                            egui::Label::new(
+                                egui::RichText::new(icon_x.to_string())
+                                    .font(FontId::new(16.0, icon_family()))
+                                    .color(pal.text_secondary),
+                            )
+                            .sense(egui::Sense::click()),
+                        );
+                        if close_btn.hovered() {
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                        }
+                        if close_btn.clicked() {
                             self.mcp_modal_open = false;
                         }
                     });
                 });
-                ui.add_space(4.0);
-                ui.label(
-                    egui::RichText::new(format!("Connect an AI agent to {app_name} via MCP."))
-                        .font(FontId::proportional(13.0))
-                        .color(pal.text_secondary),
-                );
-                ui.add_space(12.0);
-                ui.separator();
-                ui.add_space(10.0);
 
-                let mono = FontId::monospace(11.5);
-                let section = |ui: &mut egui::Ui, title: &str| {
-                    ui.label(
-                        egui::RichText::new(title)
-                            .font(FontId::proportional(12.5))
-                            .color(pal.text_secondary)
-                            .strong(),
-                    );
-                    ui.add_space(4.0);
-                };
+                ui.add_space(16.0);
 
-                egui::ScrollArea::vertical().max_height(340.0).show(ui, |ui| {
-                    // ── Claude Code CLI ──────────────────────────────────────
-                    section(ui, "CLAUDE CODE");
-                    code_block(ui, &pal, &mono, &format!("claude mcp add {app_name} --transport http {url}"));
-                    ui.add_space(2.0);
-                    ui.label(egui::RichText::new("Or in the project's .mcp.json:").font(FontId::proportional(11.5)).color(pal.text_secondary));
-                    code_block(ui, &pal, &mono, &format!(
-                        r#"{{"mcpServers":{{{{"{}": {{"type":"http","url":"{}"}}}}}}}}"#,
-                        app_name.to_lowercase().replace(' ', "-"), url
-                    ));
-                    ui.add_space(12.0);
+                // ── URL badge ────────────────────────────────────────────
+                egui::Frame::new()
+                    .fill(pal.accent_subtle)
+                    .corner_radius(CornerRadius::same(8))
+                    .inner_margin(Margin { left: 12, right: 12, top: 8, bottom: 8 })
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                egui::RichText::new(icon_link.to_string())
+                                    .font(FontId::new(13.0, icon_family()))
+                                    .color(pal.accent),
+                            );
+                            ui.add_space(4.0);
+                            ui.label(
+                                egui::RichText::new(&url)
+                                    .font(FontId::monospace(12.5))
+                                    .color(pal.accent),
+                            );
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    let copy_btn = ui.add(
+                                        egui::Label::new(
+                                            egui::RichText::new(icon_copy.to_string())
+                                                .font(FontId::new(14.0, icon_family()))
+                                                .color(pal.accent),
+                                        )
+                                        .sense(egui::Sense::click()),
+                                    );
+                                    if copy_btn.hovered() {
+                                        ui.ctx()
+                                            .set_cursor_icon(egui::CursorIcon::PointingHand);
+                                    }
+                                    if copy_btn.on_hover_text("Copier l'URL").clicked() {
+                                        if let Ok(mut cb) = arboard::Clipboard::new() {
+                                            let _ = cb.set_text(&url);
+                                        }
+                                    }
+                                },
+                            );
+                        });
+                    });
 
-                    // ── Claude Desktop ───────────────────────────────────────
-                    section(ui, "CLAUDE DESKTOP");
-                    ui.label(egui::RichText::new("Config file:").font(FontId::proportional(11.5)).color(pal.text_secondary));
-                    #[cfg(target_os = "macos")]
-                    let config_path = "~/Library/Application Support/Claude/claude_desktop_config.json";
-                    #[cfg(target_os = "windows")]
-                    let config_path = "%APPDATA%\\Claude\\claude_desktop_config.json";
-                    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-                    let config_path = "~/.config/Claude/claude_desktop_config.json";
-                    ui.label(egui::RichText::new(config_path).font(mono.clone()).color(pal.accent));
-                    ui.add_space(4.0);
-                    code_block(ui, &pal, &mono, &format!(
-                        "{{\n  \"mcpServers\": {{\n    \"{}\": {{\n      \"type\": \"http\",\n      \"url\": \"{}\"\n    }}\n  }}\n}}",
-                        app_name.to_lowercase().replace(' ', "-"), url
-                    ));
-                    ui.label(egui::RichText::new("Restart Claude Desktop after editing.").font(FontId::proportional(11.0)).color(pal.text_secondary));
-                    ui.add_space(12.0);
+                ui.add_space(16.0);
 
-                    // ── ChatGPT ──────────────────────────────────────────────
-                    section(ui, "CHATGPT DESKTOP");
-                    ui.label(egui::RichText::new("Settings → Connectors → Add an MCP server").font(FontId::proportional(11.5)).color(pal.text_secondary));
-                    code_block(ui, &pal, &mono, &url);
-                    ui.add_space(12.0);
+                // ── Instructions scroll area ─────────────────────────────
+                egui::ScrollArea::vertical()
+                    .max_height(320.0)
+                    .show(ui, |ui| {
+                        let mono = FontId::monospace(11.5);
 
-                    // ── Gemini / Google AI Studio ─────────────────────────────
-                    section(ui, "GEMINI / GOOGLE AI STUDIO");
-                    ui.label(egui::RichText::new("Extensions → Add an MCP tool (HTTP)").font(FontId::proportional(11.5)).color(pal.text_secondary));
-                    code_block(ui, &pal, &mono, &url);
-                    ui.add_space(12.0);
+                        // ── Claude Code ──────────────────────────────────
+                        mcp_section_header(ui, &pal, icon_terminal, "Claude Code");
+                        ui.add_space(4.0);
+                        code_block(
+                            ui,
+                            &pal,
+                            &mono,
+                            &format!("claude mcp add {app_name} --transport http {url}"),
+                        );
+                        ui.add_space(6.0);
+                        ui.label(
+                            egui::RichText::new("Ou dans .mcp.json :")
+                                .font(FontId::proportional(11.5))
+                                .color(pal.text_secondary),
+                        );
+                        ui.add_space(2.0);
+                        code_block(
+                            ui,
+                            &pal,
+                            &mono,
+                            &format!(
+                                "{{\n  \"mcpServers\": {{\n    \"{app_slug}\": {{\n      \"type\": \"http\",\n      \"url\": \"{url}\"\n    }}\n  }}\n}}"
+                            ),
+                        );
+                        ui.add_space(16.0);
 
-                    // ── Cursor / VS Code ─────────────────────────────────────
-                    section(ui, "CURSOR / VS CODE COPILOT");
-                    code_block(ui, &pal, &mono, &format!(
-                        "{{\n  \"mcp\": {{\n    \"servers\": {{\n      \"{}\": {{\n        \"type\": \"http\",\n        \"url\": \"{}\"\n      }}\n    }}\n  }}\n}}",
-                        app_name.to_lowercase().replace(' ', "-"), url
-                    ));
-                });
+                        // ── Claude Desktop ───────────────────────────────
+                        mcp_section_header(ui, &pal, icon_monitor, "Claude Desktop");
+                        ui.add_space(4.0);
+                        #[cfg(target_os = "macos")]
+                        let config_path =
+                            "~/Library/Application Support/Claude/claude_desktop_config.json";
+                        #[cfg(target_os = "windows")]
+                        let config_path =
+                            "%APPDATA%\\Claude\\claude_desktop_config.json";
+                        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+                        let config_path = "~/.config/Claude/claude_desktop_config.json";
+                        ui.label(
+                            egui::RichText::new(config_path)
+                                .font(FontId::monospace(11.0))
+                                .color(pal.text_secondary),
+                        );
+                        ui.add_space(4.0);
+                        code_block(
+                            ui,
+                            &pal,
+                            &mono,
+                            &format!(
+                                "{{\n  \"mcpServers\": {{\n    \"{app_slug}\": {{\n      \"type\": \"http\",\n      \"url\": \"{url}\"\n    }}\n  }}\n}}"
+                            ),
+                        );
+                        ui.add_space(16.0);
 
-                ui.add_space(10.0);
-                ui.separator();
-                ui.add_space(8.0);
+                        // ── ChatGPT ──────────────────────────────────────
+                        mcp_section_header(ui, &pal, icon_globe, "ChatGPT Desktop");
+                        ui.add_space(4.0);
+                        ui.label(
+                            egui::RichText::new(
+                                "Settings → Connectors → Add an MCP server",
+                            )
+                            .font(FontId::proportional(12.0))
+                            .color(pal.text_secondary),
+                        );
+                        ui.add_space(4.0);
+                        code_block(ui, &pal, &mono, &url);
+                        ui.add_space(16.0);
+
+                        // ── Cursor / VS Code ─────────────────────────────
+                        mcp_section_header(ui, &pal, icon_code, "Cursor / VS Code");
+                        ui.add_space(4.0);
+                        code_block(
+                            ui,
+                            &pal,
+                            &mono,
+                            &format!(
+                                "{{\n  \"mcp\": {{\n    \"servers\": {{\n      \"{app_slug}\": {{\n        \"type\": \"http\",\n        \"url\": \"{url}\"\n      }}\n    }}\n  }}\n}}"
+                            ),
+                        );
+                        ui.add_space(16.0);
+
+                        // ── Gemini ───────────────────────────────────────
+                        mcp_section_header(ui, &pal, icon_globe, "Gemini / AI Studio");
+                        ui.add_space(4.0);
+                        ui.label(
+                            egui::RichText::new("Extensions → Add an MCP tool (HTTP)")
+                                .font(FontId::proportional(12.0))
+                                .color(pal.text_secondary),
+                        );
+                        ui.add_space(4.0);
+                        code_block(ui, &pal, &mono, &url);
+                    });
+
+                ui.add_space(16.0);
+
+                // ── Footer ───────────────────────────────────────────────
                 ui.horizontal(|ui| {
-                    ui.label(
-                        egui::RichText::new(format!("Server URL: {url}"))
-                            .font(mono.clone())
-                            .color(pal.accent),
-                    );
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button("Close").clicked() {
+                        let btn_text = egui::RichText::new("Fermer")
+                            .font(FontId::proportional(13.0))
+                            .color(pal.text_secondary);
+                        let close_btn =
+                            ui.add(egui::Label::new(btn_text).sense(egui::Sense::click()));
+                        if close_btn.hovered() {
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                        }
+                        if close_btn.clicked() {
                             self.mcp_modal_open = false;
                         }
                     });
@@ -3144,6 +3268,23 @@ fn form_key(node_id: &str, action_id: &str, parameter_name: &str) -> String {
 include!(concat!(env!("OUT_DIR"), "/icon_map.rs"));
 
 /// Render a read-only code snippet with a tinted background.
+fn mcp_section_header(ui: &mut egui::Ui, pal: &config::ColorPalette, icon: char, title: &str) {
+    ui.horizontal(|ui| {
+        ui.label(
+            egui::RichText::new(icon.to_string())
+                .font(FontId::new(14.0, icon_family()))
+                .color(pal.text_secondary),
+        );
+        ui.add_space(4.0);
+        ui.label(
+            egui::RichText::new(title)
+                .font(FontId::proportional(13.0))
+                .color(pal.text_primary)
+                .strong(),
+        );
+    });
+}
+
 fn code_block(ui: &mut egui::Ui, pal: &config::ColorPalette, mono: &FontId, text: &str) {
     egui::Frame::new()
         .fill(Color32::from_rgba_unmultiplied(

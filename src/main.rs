@@ -112,8 +112,6 @@ fn serve(path: &str) -> ExitCode {
         }
     };
 
-    // Le serveur lit stdin jusqu'à ce que l'hôte MCP ferme le flux. Les erreurs
-    // sont écrites sur stderr afin de préserver stdout pour JSON-RPC.
     if let Err(error) = run_stdio_server(manifest, runtime) {
         eprintln!("MCP server stopped with an I/O error: {error}");
         ExitCode::FAILURE
@@ -122,9 +120,6 @@ fn serve(path: &str) -> ExitCode {
     }
 }
 
-/// Charge une application entière. `run` et `serve` utilisent exactement la
-/// même fonction : l'interface native et le bridge MCP interprètent ainsi le
-/// même manifeste et les mêmes handlers Lua.
 fn load_application(path: &str) -> Result<(scrawler::manifest::AppManifest, LuaRuntime), String> {
     let xml =
         fs::read_to_string(path).map_err(|error| format!("Could not read {path}: {error}"))?;
@@ -162,8 +157,6 @@ fn bundle_app(path: &str, target: Option<String>) -> ExitCode {
 }
 
 fn inspect(path: &str) -> ExitCode {
-    // On lit le fichier XML. `match` permet de traiter explicitement le cas
-    // normal (Ok) et le cas d'erreur (Err), par exemple un chemin inexistant.
     let xml = match fs::read_to_string(path) {
         Ok(contents) => contents,
         Err(error) => {
@@ -172,8 +165,6 @@ fn inspect(path: &str) -> ExitCode {
         }
     };
 
-    // Le parser renvoie lui aussi un Result. En cas de manifeste invalide, la
-    // commande s'arrête sans jamais fournir un arbre incomplet à un agent.
     let manifest = match parse_manifest(&xml) {
         Ok(manifest) => manifest,
         Err(error) => {
@@ -182,8 +173,6 @@ fn inspect(path: &str) -> ExitCode {
         }
     };
 
-    // serde_json transforme les structures Rust (grâce à #[derive(Serialize)])
-    // en JSON avec indentation afin que le résultat soit lisible dans le terminal.
     match serde_json::to_string_pretty(&manifest) {
         Ok(json) => {
             println!("{json}");

@@ -140,8 +140,6 @@ impl LuaRuntime {
             .create_table()
             .map_err(|error| RuntimeError(error.to_string()))?;
 
-        // `state.set(key, value)` produces an effect asking the renderer to
-        // update a key in its global state dictionary.
         let state_set = self
             .lua
             .create_function(|lua, (key, value): (String, LuaValue)| {
@@ -155,8 +153,6 @@ impl LuaRuntime {
             .set("set", state_set)
             .map_err(|error| RuntimeError(error.to_string()))?;
 
-        // `state.get(key)` returns the current state value (string) or nil if
-        // the key does not exist. Read-only: no effect produced.
         let snapshot: HashMap<String, String> = state.clone();
         let state_get = self
             .lua
@@ -176,9 +172,6 @@ impl LuaRuntime {
             .map_err(|error| RuntimeError(error.to_string()))?;
 
         // --- context.view ----------------------------------------------------
-        // `view.open(id, payload)` and `view.close(id, payload)` control the
-        // visibility of views declared in the XML without naming any specific
-        // view in Rust code.
         let view = self
             .lua
             .create_table()
@@ -202,10 +195,6 @@ impl LuaRuntime {
             .map_err(|error| RuntimeError(error.to_string()))?;
 
         // --- context.manifest ------------------------------------------------
-        // Effects that mutate the manifest visible in the renderer.
-        //   manifest.node.set_label(id, label)
-        //   manifest.node.set_visible(id, bool)
-        //   manifest.select.set_options(id, { "opt1", "opt2", ... })
         let manifest_table = self
             .lua
             .create_table()
@@ -270,8 +259,6 @@ impl LuaRuntime {
             .map_err(|error| RuntimeError(error.to_string()))?;
 
         // --- context.screen --------------------------------------------------
-        // `screen.navigate(id)` asks the renderer to switch to the screen
-        // whose XML id matches, using the standard transition.
         let screen_table = self
             .lua
             .create_table()
@@ -292,7 +279,6 @@ impl LuaRuntime {
             .map_err(|error| RuntimeError(error.to_string()))?;
 
         // --- context.notification --------------------------------------------
-        // `notification.show(message)` displays a temporary banner.
         let notification = self
             .lua
             .create_table()
@@ -308,7 +294,6 @@ impl LuaRuntime {
         notification
             .set("show", show)
             .map_err(|error| RuntimeError(error.to_string()))?;
-        // notification.show already added; extend the table with notification.os
         let notification_os = self
             .lua
             .create_function(|lua, (title, body): (String, String)| {
@@ -455,7 +440,6 @@ impl LuaRuntime {
             .create_table()
             .map_err(|error| RuntimeError(error.to_string()))?;
 
-        // KV
         let s = storage.clone();
         let kv_get = self
             .lua
@@ -593,7 +577,6 @@ impl LuaRuntime {
             .map_err(|error| RuntimeError(error.to_string()))?;
 
         // --- context.state.toggle -------------------------------------------
-        // Re-fetch state_table to extend it with `toggle`.
         let state_table: Table = context
             .get("state")
             .map_err(|error| RuntimeError(error.to_string()))?;
@@ -775,8 +758,6 @@ impl LuaRuntime {
             .map_err(|error| RuntimeError(error.to_string()))?;
 
         // --- context.http ---------------------------------------------------
-        // fetch: blocking HTTP call, returns {status, body, headers} directly.
-        // ws.connect / ws.send / ws.close: produce effects handled by renderer.
         let http_table = self
             .lua
             .create_table()
@@ -849,10 +830,7 @@ impl LuaRuntime {
             .set("fetch", fetch_fn)
             .map_err(|error| RuntimeError(error.to_string()))?;
 
-        // fetch_async: non-blocking HTTP call.
-        // Returns an effect { effect = "http.fetch_async", ... } instead of
-        // blocking Lua. The renderer spawns an OS thread, runs the request,
-        // then invokes `callback` with the response on the next frame.
+        // fetch_async: spawns an OS thread; invokes `callback` with the response on the next frame.
         let fetch_async_fn = self
             .lua
             .create_function(|lua, (url, opts, callback): (String, LuaValue, String)| {

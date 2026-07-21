@@ -29,8 +29,7 @@ impl McpServer {
         }
     }
 
-    /// Applique les effets `manifest.*` localement pour que `scrawler_get_semantic_tree`
-    /// reflète les mutations produites par les actions.
+    /// Applies `manifest.*` effects locally so `scrawler_get_semantic_tree` reflects mutations.
     fn apply_manifest_effects(&mut self, effects: &[Value]) {
         for effect in effects {
             match (
@@ -288,8 +287,6 @@ impl McpServer {
     }
 
     fn invoke_action(&mut self, id: Value, arguments: Map<String, Value>) -> Value {
-        // Extraire node_id, action_id et action_arguments en owned avant tout
-        // emprunt de self.manifest, pour satisfaire le borrow checker.
         let node_id = match arguments.get("node_id").and_then(Value::as_str) {
             Some(v) => v.to_owned(),
             None => return tool_error(id, "`node_id` must be a string"),
@@ -335,7 +332,6 @@ impl McpServer {
             }
         }
 
-        // Compact human-readable text (for backward-compat clients)
         let mut lines: Vec<String> = effects.iter().map(|e| {
             let kind = e["effect"].as_str().unwrap_or("?");
             let target = e["target"].as_str().unwrap_or("?");
@@ -388,18 +384,15 @@ pub fn run_stdio_server(manifest: AppManifest, runtime: LuaRuntime) -> io::Resul
     Ok(())
 }
 
-/// Démarre un serveur MCP HTTP minimaliste sur `127.0.0.1:port` dans un thread
-/// background. Chaque requête `POST /mcp` est traitée comme un message JSON-RPC.
-/// Retourne immédiatement après avoir ouvert le socket (ou une erreur si le port
-/// est déjà occupé).
+/// Starts a minimal MCP HTTP server on `127.0.0.1:port` in a background thread.
+/// Returns immediately after binding the socket.
 pub fn start_http_server(
     manifest: AppManifest,
     runtime: LuaRuntime,
     port: u16,
 ) -> io::Result<()> {
     let listener = TcpListener::bind(format!("127.0.0.1:{port}"))?;
-    // LuaRuntime n'est pas Send (contient un Rc). On reconstruit le runtime
-    // dans le thread depuis sa source (String, qui l'est).
+    // LuaRuntime is not Send (contains Rc); rebuild from source inside the thread.
     let lua_source = runtime.source().to_owned();
     let lua_name = runtime.source_name().to_owned();
     std::thread::spawn(move || {
@@ -416,7 +409,6 @@ pub fn start_http_server(
 }
 
 fn handle_http_connection(mut stream: TcpStream, server: &mut McpServer) {
-    // Lire les en-têtes HTTP ligne par ligne jusqu'à la ligne vide.
     let mut headers = String::new();
     let mut buf = [0u8; 1];
     loop {
@@ -426,7 +418,6 @@ fn handle_http_connection(mut stream: TcpStream, server: &mut McpServer) {
         if headers.len() > 8192 { return; }
     }
 
-    // Extraire Content-Length pour lire le corps.
     let content_length: usize = headers
         .lines()
         .find(|l| l.to_ascii_lowercase().starts_with("content-length:"))
@@ -470,7 +461,7 @@ fn handle_http_connection(mut stream: TcpStream, server: &mut McpServer) {
 
     let body_bytes = match response_json {
         Some(resp) => serde_json::to_vec(&resp).unwrap_or_default(),
-        // Notifications (pas de réponse attendue) → 202 Accepted vide
+        // Notifications have no expected response body.
         None => {
             let _ = stream.write_all(
                 b"HTTP/1.1 202 Accepted\r\n\
