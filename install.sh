@@ -44,4 +44,4 @@ fi
 rm -rf "$TMP"
 
 echo "scrawler installed successfully!"
-echo "Run 'scrawler --help' to get started."
+echo "Read https://github.com/LeDavax/Scrawler/blob/main/DEVELOPER.md to get started."
