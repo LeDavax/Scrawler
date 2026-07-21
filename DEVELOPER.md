@@ -719,8 +719,9 @@ Set `mcp.port` in `manifest.yml` and launch the app. Then point your client at `
 
 **Claude Code CLI**
 ```bash
-claude mcp add MyApp --transport http http://127.0.0.1:7080/mcp
+claude mcp add "My App" --transport http http://127.0.0.1:7080/mcp
 ```
+> If your app name contains spaces, wrap it in quotes. Alternatively, use a single-word name (e.g. `myapp`) to avoid quoting.
 
 **Claude Desktop** — edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 ```json

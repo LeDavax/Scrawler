@@ -914,6 +914,16 @@ impl LuaRuntime {
     }
 }
 
+pub fn json_to_state_string(value: &Value) -> String {
+    match value {
+        Value::String(s) => s.clone(),
+        Value::Bool(b) => b.to_string(),
+        Value::Number(n) => n.to_string(),
+        Value::Null => String::new(),
+        other => serde_json::to_string(other).unwrap_or_default(),
+    }
+}
+
 /// Validates the minimal contract of an effect before forwarding it to the agent.
 /// Prevents Lua from returning an arbitrary string or structure that the
 /// renderer would not know how to interpret.

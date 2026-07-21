@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::io::{self, BufRead, Read, Write};
 use std::net::{TcpListener, TcpStream};
 
-const PROTOCOL_VERSION: &str = "2025-11-25";
+const PROTOCOL_VERSION: &str = "2025-03-26";
 
 pub struct McpServer {
     manifest: AppManifest,
@@ -15,27 +15,56 @@ pub struct McpServer {
     initialized: bool,
     hidden_nodes: HashSet<String>,
     storage: AppStorage,
+    state: HashMap<String, String>,
 }
 
 impl McpServer {
     pub fn new(manifest: AppManifest, runtime: LuaRuntime) -> Self {
         let storage = AppStorage::new(&manifest.id);
+        // Mirror the renderer's initialisation: state defaults declared in
+        // `app.xml` must be visible to `context.state.get` from the very first
+        // agent-invoked action, exactly like they are in the native window.
+        let mut state = HashMap::new();
+        for entry in &manifest.state {
+            state.insert(entry.id.clone(), entry.default.clone());
+        }
         Self {
             manifest,
             runtime,
             initialized: false,
             hidden_nodes: HashSet::new(),
             storage,
+            state,
         }
     }
 
-    /// Applies `manifest.*` effects locally so `scrawler_get_semantic_tree` reflects mutations.
+    /// Applies `manifest.*` and `state.*` effects locally so that
+    /// `scrawler_get_semantic_tree` reflects mutations and subsequent
+    /// `scrawler_invoke_action` calls see up-to-date state, even when no
+    /// native window is running to apply these effects itself.
     fn apply_manifest_effects(&mut self, effects: &[Value]) {
         for effect in effects {
             match (
                 effect.get("effect").and_then(Value::as_str),
                 effect.get("target").and_then(Value::as_str),
             ) {
+                (Some("state.set"), Some(key)) => {
+                    let value = effect
+                        .pointer("/payload/value")
+                        .map(crate::runtime::json_to_state_string)
+                        .unwrap_or_default();
+                    self.state.insert(key.into(), value);
+                }
+                (Some("view.open"), _) => {
+                    if let Some(values) =
+                        effect.pointer("/payload/state").and_then(Value::as_object)
+                    {
+                        for (key, value) in values {
+                            self.state
+                                .insert(key.clone(), crate::runtime::json_to_state_string(value));
+                        }
+                    }
+                }
                 (Some("manifest.set_label"), Some(node_id)) => {
                     if let Some(label) = effect.pointer("/payload/label").and_then(Value::as_str) {
                         if let Some(node) = find_node_mut(&mut self.manifest.nodes, node_id) {
@@ -327,8 +356,7 @@ impl McpServer {
             (action.handler.clone(), action_arguments)
         };
 
-        let empty_state = HashMap::new();
-        let invoke_ctx = InvokeContext::new(&empty_state, &self.storage);
+        let invoke_ctx = InvokeContext::new(&self.state, &self.storage);
         let effects = match self.runtime.invoke(&handler, &validated, &invoke_ctx) {
             Ok(effects) => effects,
             Err(error) => return tool_error(id, error.to_string()),
@@ -441,20 +469,13 @@ fn handle_http_connection(mut stream: TcpStream, server: &mut McpServer) {
     let is_post_mcp = first_line.starts_with("POST") &&
         (first_line.contains("/mcp") || first_line.contains(" / "));
 
-    // CORS pre-flight
     if is_options {
-        let _ = stream.write_all(
-            b"HTTP/1.1 204 No Content\r\n\
-              Access-Control-Allow-Origin: *\r\n\
-              Access-Control-Allow-Methods: POST, OPTIONS\r\n\
-              Access-Control-Allow-Headers: Content-Type, MCP-Protocol-Version\r\n\
-              \r\n"
-        );
+        let _ = stream.write_all(b"HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type, Accept, Mcp-Session-Id, MCP-Protocol-Version\r\nAccess-Control-Expose-Headers: Mcp-Session-Id\r\n\r\n");
         return;
     }
 
     if !is_post_mcp || content_length == 0 {
-        let _ = stream.write_all(b"HTTP/1.1 400 Bad Request\r\n\r\n");
+        let _ = stream.write_all(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n");
         return;
     }
 
@@ -472,24 +493,14 @@ fn handle_http_connection(mut stream: TcpStream, server: &mut McpServer) {
 
     let body_bytes = match response_json {
         Some(resp) => serde_json::to_vec(&resp).unwrap_or_default(),
-        // Notifications have no expected response body.
         None => {
-            let _ = stream.write_all(
-                b"HTTP/1.1 202 Accepted\r\n\
-                  Access-Control-Allow-Origin: *\r\n\
-                  Content-Length: 0\r\n\
-                  \r\n"
-            );
+            let _ = stream.write_all(b"HTTP/1.1 202 Accepted\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: 0\r\n\r\n");
             return;
         }
     };
 
     let header = format!(
-        "HTTP/1.1 200 OK\r\n\
-         Content-Type: application/json\r\n\
-         Content-Length: {}\r\n\
-         Access-Control-Allow-Origin: *\r\n\
-         \r\n",
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\n\r\n",
         body_bytes.len()
     );
     let _ = stream.write_all(header.as_bytes());

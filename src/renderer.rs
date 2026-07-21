@@ -677,16 +677,14 @@ impl SemanticApplication {
             (Some("state.set"), Some(key)) => {
                 let value = effect
                     .pointer("/payload/value")
-                    .and_then(Value::as_str)
-                    .unwrap_or("");
-                self.state.insert(key.into(), value.into());
+                    .map(crate::runtime::json_to_state_string)
+                    .unwrap_or_default();
+                self.state.insert(key.into(), value);
             }
             (Some("view.open"), Some(view_id)) => {
                 if let Some(values) = effect.pointer("/payload/state").and_then(Value::as_object) {
                     for (key, value) in values {
-                        if let Some(value) = value.as_str() {
-                            self.state.insert(key.clone(), value.into());
-                        }
+                        self.state.insert(key.clone(), crate::runtime::json_to_state_string(value));
                     }
                 }
                 self.open_views.insert(view_id.into());
@@ -1375,7 +1373,7 @@ impl SemanticApplication {
                             ui,
                             &pal,
                             &mono,
-                            &format!("claude mcp add {app_name} --transport http {url}"),
+                            &format!("claude mcp add \"{app_name}\" --transport http {url}"),
                         );
                         ui.add_space(6.0);
                         ui.label(
@@ -2904,8 +2902,18 @@ impl eframe::App for SemanticApplication {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
 
+        let mut received_remote_effect = false;
         while let Ok(effect) = self.remote_effects.try_recv() {
             self.apply_effect(effect);
+            received_remote_effect = true;
+        }
+        if received_remote_effect {
+            // Effects delivered over the MCP IPC bridge arrive on a background
+            // thread, outside of any input event that would normally trigger a
+            // repaint. Without this, an agent-driven mutation (label/visibility/
+            // state change, etc.) can sit applied-but-invisible until the user
+            // happens to move the mouse over the window.
+            ctx.request_repaint();
         }
 
         // Dispatch WebSocket messages as Lua handler invocations.
@@ -2943,6 +2951,9 @@ impl eframe::App for SemanticApplication {
                     }
                 }
             }
+        }
+        if !ws_effects.is_empty() {
+            ctx.request_repaint();
         }
         for effect in ws_effects {
             self.apply_effect(effect);
