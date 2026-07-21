@@ -163,7 +163,10 @@ impl McpServer {
         }
 
         match method {
-            Some("initialize") => id.map(|request_id| self.initialize(request_id)),
+            Some("initialize") => {
+                self.initialized = true;
+                id.map(|request_id| self.initialize(request_id))
+            }
             Some("notifications/initialized") => {
                 self.initialized = true;
                 None
