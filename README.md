@@ -1,4 +1,23 @@
-# Scrawler
+# Scrawler Semantical Runtime (made for OpenAI build week)
+
+# Notes (by me)
+Hello, as I'm only 15 and French (it's my mum who signed up on devpost) I don't speak really good English, that's why it's an AI which wrote the next section `README.md (by llm)`. I wrote some notes myself, there might be many mistakes but now you know why.
+
+## This project
+My project is in the "Developper tools" category. My idea is that it's absurd to make the agents take a screenshot, analyze the screenshot and use an api to click on a pixel, only to click on ONE SINGLE button. That's why I made Scrawler Semantic Runtime. The goal is to separate the gui and the logic in order to make my system call the functions on click, on hover, on input, etc. instead of that the functions detect theses events which allows human to interact with the app through a gui and an agent both through a mcp server. (technical details explained by ai in the following sections)
+
+## My project
+My final goal is to make a new OS called "ScrawlerOS" where human and agent can interact with everything together, and `Scrawler Semantical Runtime` is a part of this projetc, but as I had only 2 days for this hackaton (yes, I discovered the OpenAI build week a litle bit too late) I "only" made Scrawler Semantical Runtime.
+
+## My usage of GPT-5.6 Terra
+As I missed the start of the competition I couldn't get the codex free credits and I'm in free plan so my usage of codex was really limited. I used it to make the structure and the start of the project and it made strong bases, then I continued with an other llm.
+
+## Test it
+You can watch my demo video and the setup instructions are in the following sections. The example in the repo is not very good so I recommend that you give the DEVELOPER.md file to en ai, ask it to make an app and test it by running `scrawler run` (after you have installed the binary file as it is explained by ai in the following sections).
+
+---
+
+# README.md (by llm)
 
 Scrawler is a local runtime for semantic, agent-friendly applications.
 
