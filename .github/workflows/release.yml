@@ -2,11 +2,6 @@ name: Build & Release
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Version tag (e.g. v0.1.0)"
-        required: true
-        type: string
 
 jobs:
   build:
