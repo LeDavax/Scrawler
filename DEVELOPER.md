@@ -732,7 +732,7 @@ claude mcp add MyApp --transport http http://127.0.0.1:7080/mcp
 ```
 Restart Claude Desktop after saving.
 
-**ChatGPT Desktop** — Settings → Connectors → Add MCP server → enter the URL.
+**ChatGPT Desktop** — Settings → Plugins → MCP → Add server → enter the URL.
 
 **Gemini / Google AI Studio** — Extensions → Add MCP tool (HTTP) → enter the URL.
 

@@ -1426,7 +1426,7 @@ impl SemanticApplication {
                         ui.add_space(4.0);
                         ui.label(
                             egui::RichText::new(
-                                "Settings → Connectors → Add an MCP server",
+                                "Settings > Plugins > MCP > Add server",
                             )
                             .font(FontId::proportional(12.0))
                             .color(pal.text_secondary),
