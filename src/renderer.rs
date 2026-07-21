@@ -491,7 +491,7 @@ const POWERED_BY_ANIM: f32 = 1.2;
 // Messages from a WebSocket thread to the main loop.
 enum WsMsg {
     Connected { conn_id: String, tx: Sender<String> },
-    Message { conn_id: String, on_message: String, data: String },
+    Message { #[allow(dead_code)] conn_id: String, on_message: String, data: String },
     Closed { conn_id: String, on_close: String },
 }
 
@@ -655,6 +655,7 @@ impl SemanticApplication {
     }
 
     // Shorthand accessors — avoids repeating self.palette().xxx at every call site.
+    #[allow(dead_code)]
     fn c_bg_primary(&self)    -> Color32 { self.palette().bg_primary }
     fn c_bg_surface(&self)    -> Color32 { self.palette().bg_surface }
     fn c_text_primary(&self)  -> Color32 { self.palette().text_primary }
@@ -759,13 +760,24 @@ impl SemanticApplication {
                                 label,
                                 bind: None,
                                 icon: None,
-                                actions: Vec::new(),
-                                children: Vec::new(),
                                 placeholder: None,
                                 disabled: false,
                                 readonly: false,
                                 variant: None,
                                 aria_label: None,
+                                layout: None,
+                                gap: None,
+                                padding: None,
+                                width: None,
+                                min_width: None,
+                                min_height: None,
+                                max_height: None,
+                                columns: None,
+                                wrap: false,
+                                scroll: false,
+                                grow: false,
+                                actions: Vec::new(),
+                                children: Vec::new(),
                             });
                         }
                     }
@@ -1170,21 +1182,31 @@ impl SemanticApplication {
 
                     if mcp_active {
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let response = ui.horizontal(|ui| {
-                                let icon_ch = icon_char("zap").unwrap_or('⚡');
-                                ui.label(
-                                    egui::RichText::new(icon_ch.to_string())
-                                        .font(FontId::new(12.0, icon_family()))
-                                        .color(accent),
-                                );
-                                ui.label(
-                                    egui::RichText::new("Connecteur IA en ligne")
-                                        .font(FontId::proportional(11.0))
-                                        .color(accent),
-                                );
-                            }).response;
-                            let badge = response.interact(egui::Sense::click());
-                            if badge.on_hover_text("Paramètres de connexion").clicked() {
+                            let icon_ch = icon_char("globe-check").unwrap_or('○');
+                            let btn_resp = egui::Frame::new()
+                                .fill(Color32::TRANSPARENT)
+                                .corner_radius(CornerRadius::same(6))
+                                .inner_margin(Margin { left: 8, right: 8, top: 3, bottom: 3 })
+                                .show(ui, |ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.label(
+                                            egui::RichText::new(icon_ch.to_string())
+                                                .font(FontId::new(12.0, icon_family()))
+                                                .color(accent),
+                                        );
+                                        ui.label(
+                                            egui::RichText::new("Connecteur IA en ligne")
+                                                .font(FontId::proportional(11.0))
+                                                .color(accent),
+                                        );
+                                    });
+                                })
+                                .response
+                                .interact(egui::Sense::click());
+                            if btn_resp.hovered() {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                            }
+                            if btn_resp.on_hover_text("Paramètres de connexion").clicked() {
                                 self.mcp_modal_open = true;
                             }
                         });
@@ -1220,7 +1242,7 @@ impl SemanticApplication {
                 }
             });
 
-        let modal_width = (screen_rect.width() * 0.55).clamp(440.0, 580.0);
+        let modal_width = (screen_rect.width() * 0.60).clamp(500.0, 680.0);
         let pal = self.palette().clone();
         let icon_x = icon_char("x").unwrap_or('✕');
         let icon_plug = icon_char("plug").unwrap_or('⚡');
@@ -1237,7 +1259,7 @@ impl SemanticApplication {
             .collapsible(false)
             .order(egui::Order::TOP)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-            .fixed_size([modal_width, 0.0])
+            .fixed_size([modal_width, (screen_rect.height() * 0.82).clamp(500.0, 720.0)])
             .frame(
                 egui::Frame::new()
                     .fill(pal.bg_elevated)
@@ -1342,9 +1364,9 @@ impl SemanticApplication {
 
                 // ── Instructions scroll area ─────────────────────────────
                 egui::ScrollArea::vertical()
-                    .max_height(320.0)
+                    .auto_shrink([false, false])
                     .show(ui, |ui| {
-                        let mono = FontId::monospace(11.5);
+                        let mono = FontId::monospace(13.0);
 
                         // ── Claude Code ──────────────────────────────────
                         mcp_section_header(ui, &pal, icon_terminal, "Claude Code");
@@ -1462,6 +1484,29 @@ impl SemanticApplication {
     // ─── Node rendering ──────────────────────────────────────────────────────
 
     fn render_node(&mut self, ui: &mut egui::Ui, node: &SemanticNode) {
+        let has_width_hint = node.width.is_some() || node.min_width.is_some() || node.grow;
+        if has_width_hint {
+            let available_width = ui.available_width();
+            let requested_width = if node.grow {
+                available_width
+            } else {
+                node.width.unwrap_or(available_width)
+            };
+            let width = requested_width
+                .max(node.min_width.unwrap_or(0.0))
+                .min(available_width);
+            let layout = *ui.layout();
+            ui.allocate_ui_with_layout(
+                Vec2::new(width, ui.available_height()),
+                layout,
+                |ui| self.render_node_inner(ui, node),
+            );
+            return;
+        }
+        self.render_node_inner(ui, node);
+    }
+
+    fn render_node_inner(&mut self, ui: &mut egui::Ui, node: &SemanticNode) {
         if self.hidden_nodes.contains(&node.id) {
             return;
         }
@@ -1496,12 +1541,84 @@ impl SemanticApplication {
         }
     }
 
+    fn render_children_with_layout(
+        &mut self,
+        ui: &mut egui::Ui,
+        node: &SemanticNode,
+        children: &[SemanticNode],
+        default_layout: &str,
+        default_gap: f32,
+    ) {
+        if children.is_empty() {
+            return;
+        }
+
+        let layout = node.layout.as_deref().unwrap_or(default_layout);
+        let gap = node.gap.unwrap_or(default_gap);
+
+        match layout {
+            "row" => {
+                if node.wrap {
+                    ui.horizontal_wrapped(|ui| {
+                        for (idx, child) in children.iter().enumerate() {
+                            self.render_node(ui, child);
+                            if idx < children.len() - 1 {
+                                ui.add_space(gap);
+                            }
+                        }
+                    });
+                } else {
+                    ui.horizontal(|ui| {
+                        for (idx, child) in children.iter().enumerate() {
+                            self.render_node(ui, child);
+                            if idx < children.len() - 1 {
+                                ui.add_space(gap);
+                            }
+                        }
+                    });
+                }
+            }
+            "grid" => {
+                let columns = node.columns.unwrap_or(2).max(1);
+                egui::Grid::new(format!("grid_{}", node.id))
+                    .num_columns(columns)
+                    .spacing(Vec2::new(gap, gap))
+                    .striped(false)
+                    .show(ui, |ui| {
+                        for (idx, child) in children.iter().enumerate() {
+                            self.render_node(ui, child);
+                            if (idx + 1) % columns == 0 {
+                                ui.end_row();
+                            }
+                        }
+                        if children.len() % columns != 0 {
+                            ui.end_row();
+                        }
+                    });
+            }
+            _ => {
+                for (idx, child) in children.iter().enumerate() {
+                    self.render_node(ui, child);
+                    if idx < children.len() - 1 {
+                        ui.add_space(gap);
+                    }
+                }
+            }
+        }
+    }
+
     fn render_screen_content(&mut self, ui: &mut egui::Ui, node: &SemanticNode) {
         let children = node.children.clone();
         let visible_children: Vec<_> = children
             .iter()
             .filter(|c| c.role != "dialog" && c.role != "view")
             .collect();
+
+        if matches!(node.layout.as_deref(), Some("row") | Some("wrap") | Some("grid")) {
+            let visible_children: Vec<SemanticNode> = visible_children.into_iter().cloned().collect();
+            self.render_children_with_layout(ui, node, &visible_children, "column", node.gap.unwrap_or(12.0));
+            return;
+        }
 
         for (idx, child) in visible_children.iter().enumerate() {
             let appear = self
@@ -1532,7 +1649,7 @@ impl SemanticApplication {
                 ui.set_opacity(opacity);
                 ui.add_space(offset_y);
                 self.render_node(ui, child);
-                ui.add_space(12.0);
+                ui.add_space(node.gap.unwrap_or(12.0));
                 ui.set_opacity(1.0);
             }
         }
@@ -1556,7 +1673,7 @@ impl SemanticApplication {
             .fill(self.c_bg_surface())
             .stroke(Stroke::new(1.0, border_color))
             .corner_radius(CornerRadius::same(self.cfg.corner_radius_card as u8))
-            .inner_margin(Margin::same(20))
+            .inner_margin(Margin::same(node.padding.unwrap_or(20.0) as i8))
             .shadow(egui::epaint::Shadow {
                 offset: [0, (hover_t * 2.0) as i8].into(),
                 blur: (hover_t * 6.0) as u8,
@@ -1564,18 +1681,17 @@ impl SemanticApplication {
                 color: Color32::from_rgba_premultiplied(0, 0, 0, shadow_alpha),
             });
         frame.show(ui, |ui| {
-            ui.label(
-                egui::RichText::new(&node.label)
-                    .font(FontId::proportional(15.0))
-                    .color(self.c_text_primary())
-                    .strong(),
-            );
-            ui.add_space(12.0);
-            let children = node.children.clone();
-            for child in &children {
-                self.render_node(ui, child);
-                ui.add_space(8.0);
+            if !node.label.is_empty() {
+                ui.label(
+                    egui::RichText::new(&node.label)
+                        .font(FontId::proportional(15.0))
+                        .color(self.c_text_primary())
+                        .strong(),
+                );
+                ui.add_space(node.gap.unwrap_or(12.0));
             }
+            let children = node.children.clone();
+            self.render_children_with_layout(ui, node, &children, "column", 8.0);
         });
     }
 
@@ -2269,18 +2385,22 @@ impl SemanticApplication {
                 ui.add_space(2.0);
             }
             let children = node.children.clone();
-            let needs_scroll = children.len() > 6;
+            let needs_scroll = node.scroll || children.len() > 6;
             let render_items = |ui: &mut egui::Ui, this: &mut Self| {
-                for (idx, child) in children.iter().enumerate() {
-                    this.render_node(ui, child);
-                    if idx < children.len() - 1 {
-                        ui.separator();
+                if matches!(node.layout.as_deref(), Some("row") | Some("wrap") | Some("grid")) {
+                    this.render_children_with_layout(ui, node, &children, "column", node.gap.unwrap_or(0.0));
+                } else {
+                    for (idx, child) in children.iter().enumerate() {
+                        this.render_node(ui, child);
+                        if idx < children.len() - 1 {
+                            ui.separator();
+                        }
                     }
                 }
             };
             if needs_scroll {
                 egui::ScrollArea::vertical()
-                    .max_height(280.0)
+                    .max_height(node.max_height.unwrap_or(280.0))
                     .auto_shrink([false, true])
                     .show(ui, |ui| {
                         render_items(ui, self);
@@ -2499,7 +2619,7 @@ impl SemanticApplication {
             .fill(self.c_bg_surface())
             .stroke(Stroke::new(1.0, self.c_border()))
             .corner_radius(CornerRadius::same(self.cfg.corner_radius_card as u8))
-            .inner_margin(Margin::same(20))
+            .inner_margin(Margin::same(node.padding.unwrap_or(20.0) as i8))
             .shadow(egui::epaint::Shadow {
                 offset: [0, 2].into(),
                 blur: 8,
@@ -2507,29 +2627,28 @@ impl SemanticApplication {
                 color: Color32::from_rgba_premultiplied(0, 0, 0, 10),
             });
         frame.show(ui, |ui| {
-            ui.horizontal(|ui| {
-                if let Some(icon_ch) = node.icon.as_deref().and_then(icon_char) {
+            if !node.label.is_empty() {
+                ui.horizontal(|ui| {
+                    if let Some(icon_ch) = node.icon.as_deref().and_then(icon_char) {
+                        ui.label(
+                            egui::RichText::new(icon_ch.to_string())
+                                .font(FontId::new(18.0, icon_family()))
+                                .color(self.c_accent()),
+                        );
+                        ui.add_space(8.0);
+                    }
                     ui.label(
-                        egui::RichText::new(icon_ch.to_string())
-                            .font(FontId::new(18.0, icon_family()))
-                            .color(self.c_accent()),
+                        egui::RichText::new(&node.label)
+                            .font(FontId::proportional(15.0))
+                            .color(self.c_text_primary())
+                            .strong(),
                     );
-                    ui.add_space(8.0);
-                }
-                ui.label(
-                    egui::RichText::new(&node.label)
-                        .font(FontId::proportional(15.0))
-                        .color(self.c_text_primary())
-                        .strong(),
-                );
-            });
+                });
+            }
             if !node.children.is_empty() {
-                ui.add_space(12.0);
+                ui.add_space(node.gap.unwrap_or(12.0));
                 let children = node.children.clone();
-                for child in &children {
-                    self.render_node(ui, child);
-                    ui.add_space(8.0);
-                }
+                self.render_children_with_layout(ui, node, &children, "column", 8.0);
             }
         });
     }
@@ -2671,10 +2790,7 @@ impl SemanticApplication {
                     ui.add_space(20.0);
 
                     let children = dialog.children.clone();
-                    for child in &children {
-                        self.render_node(ui, child);
-                        ui.add_space(12.0);
-                    }
+                    self.render_children_with_layout(ui, dialog, &children, "column", 12.0);
                 });
 
             if progress < 1.0 || is_closing {
@@ -2771,6 +2887,7 @@ impl SemanticApplication {
         }
     }
 
+    #[allow(dead_code)]
     fn check_shortcuts(&mut self, ui: &mut egui::Ui) {
         let nodes = self.manifest.nodes.clone();
         let mut triggered: Vec<(SemanticNode, SemanticAction)> = Vec::new();
@@ -3286,24 +3403,62 @@ fn mcp_section_header(ui: &mut egui::Ui, pal: &config::ColorPalette, icon: char,
 }
 
 fn code_block(ui: &mut egui::Ui, pal: &config::ColorPalette, mono: &FontId, text: &str) {
+    let icon_copy = icon_char("copy").unwrap_or('⎘');
+    let icon_check = icon_char("check").unwrap_or('✓');
+    let copy_id = egui::Id::new(("code_block_copied", text));
+    let copied_at: Option<Instant> = ui.ctx().data(|d| d.get_temp(copy_id));
+    let just_copied = copied_at
+        .map(|t| t.elapsed().as_secs_f32() < 1.5)
+        .unwrap_or(false);
+
     egui::Frame::new()
-        .fill(Color32::from_rgba_unmultiplied(
-            pal.accent.r(), pal.accent.g(), pal.accent.b(), 12,
-        ))
-        .stroke(Stroke::new(1.0, Color32::from_rgba_unmultiplied(
-            pal.border.r(), pal.border.g(), pal.border.b(), 180,
-        )))
-        .corner_radius(CornerRadius::same(6))
-        .inner_margin(Margin { left: 10, right: 10, top: 6, bottom: 6 })
+        .fill(pal.bg_primary)
+        .stroke(Stroke::new(1.0, pal.border))
+        .corner_radius(CornerRadius::same(8))
+        .inner_margin(Margin { left: 14, right: 10, top: 10, bottom: 10 })
         .show(ui, |ui| {
-            ui.add(
-                egui::TextEdit::multiline(&mut text.to_owned())
-                    .font(mono.clone())
-                    .text_color(pal.text_primary)
-                    .desired_width(f32::INFINITY)
-                    .desired_rows(text.lines().count().max(1))
-                    .interactive(false),
-            );
+            let full_width = ui.available_width();
+            ui.horizontal(|ui| {
+                // Code lines stacked vertically, left side
+                let text_width = full_width - 28.0;
+                ui.vertical(|ui| {
+                    ui.set_max_width(text_width);
+                    for line in text.lines() {
+                        ui.label(
+                            egui::RichText::new(line)
+                                .font(mono.clone())
+                                .color(pal.text_primary),
+                        );
+                    }
+                });
+
+                // Copy icon, right side
+                let (icon_ch, icon_color) = if just_copied {
+                    (icon_check, pal.accent)
+                } else {
+                    (icon_copy, pal.text_secondary)
+                };
+                let btn = ui.add(
+                    egui::Label::new(
+                        egui::RichText::new(icon_ch.to_string())
+                            .font(FontId::new(15.0, icon_family()))
+                            .color(icon_color),
+                    )
+                    .sense(egui::Sense::click()),
+                );
+                if btn.hovered() {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                }
+                if btn.on_hover_text("Copier").clicked() {
+                    if let Ok(mut cb) = arboard::Clipboard::new() {
+                        let _ = cb.set_text(text);
+                    }
+                    ui.ctx().data_mut(|d| d.insert_temp(copy_id, Instant::now()));
+                }
+                if just_copied {
+                    ui.ctx().request_repaint();
+                }
+            });
         });
 }
 
@@ -3314,6 +3469,7 @@ fn icon_char(name: &str) -> Option<char> {
         .map(|i| ICON_MAP[i].1)
 }
 
+#[allow(dead_code)]
 fn collect_shortcut_triggers(
     ui: &egui::Ui,
     node: &SemanticNode,
@@ -3331,6 +3487,7 @@ fn collect_shortcut_triggers(
     }
 }
 
+#[allow(dead_code)]
 fn shortcut_pressed(ui: &egui::Ui, shortcut: &str) -> bool {
     let parts: Vec<&str> = shortcut.split('+').collect();
     let (modifiers, key_str) = match parts.split_last() {

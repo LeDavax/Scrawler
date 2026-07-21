@@ -84,6 +84,44 @@ All five accept the same attributes. The tag choice is cosmetic and only affects
 | `variant` | no | Visual variant: `primary` (default), `secondary`, `destructive`. Used by `button`. |
 | `aria-label` | no | Description shown to agents instead of `label`. Use for long explanations. |
 
+### Layout attributes
+
+Container nodes (`screen`, `group`, `view`, `component`, and `dialog`) can describe their
+layout instead of relying on the default vertical flow. The same attributes are also useful
+on `card` and `list` nodes.
+
+| Attribute | Required | Description |
+|---|---|---|
+| `layout` | no | `column` (default), `row`, `wrap`, or `grid`. Applies to the node's children. |
+| `gap` | no | Space between children, in logical pixels. |
+| `padding` | no | Inner padding for `group` and `card`, in logical pixels. |
+| `columns` | no | Number of columns when `layout="grid"`. Defaults to `2`. |
+| `wrap` | no | `"true"` enables line wrapping for `layout="row"`. |
+| `scroll` | no | `"true"` enables vertical scrolling for a `list`. |
+| `max-height` | no | Maximum scroll area height for a `list`, in logical pixels. |
+| `width` | no | Explicit width for a rendered node, in logical pixels. |
+| `min-width` | no | Minimum width for a rendered node, in logical pixels. |
+| `grow` | no | `"true"` makes the node use the available width. |
+
+For a notes interface, a grid of cards can be declared directly in XML:
+
+```xml
+<screen id="notes" role="screen" label="Notes" layout="column" gap="16">
+  <group id="toolbar" role="group" label="Rechercher" layout="row" gap="12" padding="16" wrap="true">
+    <component id="query" role="text-input" label="Titre ou contenu" bind="notes.query"
+               placeholder="Rechercher une note..." grow="true" />
+    <component id="new-note" role="button" label="Nouvelle note" variant="primary" />
+  </group>
+
+  <component id="note-grid" role="list" label="Notes" layout="grid" columns="3"
+             gap="12" scroll="true" max-height="420" />
+</screen>
+```
+
+`grid` distributes children by row, while `wrap="true"` keeps a row usable on narrower
+windows. Use `scroll` and `max-height` for long collections so the whole screen does not grow
+without limit.
+
 ### Roles
 
 | Role | Description | Supports `bind` |

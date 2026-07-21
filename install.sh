@@ -36,6 +36,11 @@ else
 fi
 chmod +x "$INSTALL_DIR/scrawler"
 
+# Remove macOS quarantine flag set on downloaded files
+if [ "$OS" = "Darwin" ]; then
+  xattr -d com.apple.quarantine "$INSTALL_DIR/scrawler" 2>/dev/null || true
+fi
+
 rm -rf "$TMP"
 
 echo "scrawler installed successfully!"

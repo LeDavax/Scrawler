@@ -58,6 +58,28 @@ pub struct SemanticNode {
     pub variant: Option<String>,
     /// Semantic label for the MCP agent (overrides `label` when present).
     pub aria_label: Option<String>,
+    /// Optional layout hint for container-like nodes: `column`, `row`, `wrap`, `grid`.
+    pub layout: Option<String>,
+    /// Spacing between children, in logical pixels.
+    pub gap: Option<f32>,
+    /// Inner padding for container-like nodes, in logical pixels.
+    pub padding: Option<f32>,
+    /// Explicit width for the node when rendered by the UI.
+    pub width: Option<f32>,
+    /// Minimum width for the node.
+    pub min_width: Option<f32>,
+    /// Minimum height for the node.
+    pub min_height: Option<f32>,
+    /// Maximum height for the node.
+    pub max_height: Option<f32>,
+    /// Number of columns used by grid layouts.
+    pub columns: Option<usize>,
+    /// Whether row layouts may wrap onto multiple lines.
+    pub wrap: bool,
+    /// Whether the container should be rendered inside a scroll area.
+    pub scroll: bool,
+    /// Hint that the node should expand to available space.
+    pub grow: bool,
     pub actions: Vec<SemanticAction>,
     pub children: Vec<SemanticNode>,
 }
@@ -162,6 +184,17 @@ pub fn parse_manifest(xml: &str) -> Result<AppManifest, ManifestError> {
                             readonly: attribute_or(start, "readonly", "false") == "true",
                             variant: attribute(start, "variant")?,
                             aria_label: attribute(start, "aria-label")?,
+                            layout: attribute(start, "layout")?,
+                            gap: f32_attribute(start, "gap")?,
+                            padding: f32_attribute(start, "padding")?,
+                            width: f32_attribute(start, "width")?,
+                            min_width: f32_attribute(start, "min-width")?,
+                            min_height: f32_attribute(start, "min-height")?,
+                            max_height: f32_attribute(start, "max-height")?,
+                            columns: usize_attribute(start, "columns")?,
+                            wrap: bool_attribute(start, "wrap")?.unwrap_or(false),
+                            scroll: bool_attribute(start, "scroll")?.unwrap_or(false),
+                            grow: bool_attribute(start, "grow")?.unwrap_or(false),
                             actions: Vec::new(),
                             children: Vec::new(),
                         });
@@ -262,6 +295,17 @@ pub fn parse_manifest(xml: &str) -> Result<AppManifest, ManifestError> {
                             readonly: attribute_or(empty, "readonly", "false") == "true",
                             variant: attribute(empty, "variant")?,
                             aria_label: attribute(empty, "aria-label")?,
+                            layout: attribute(empty, "layout")?,
+                            gap: f32_attribute(empty, "gap")?,
+                            padding: f32_attribute(empty, "padding")?,
+                            width: f32_attribute(empty, "width")?,
+                            min_width: f32_attribute(empty, "min-width")?,
+                            min_height: f32_attribute(empty, "min-height")?,
+                            max_height: f32_attribute(empty, "max-height")?,
+                            columns: usize_attribute(empty, "columns")?,
+                            wrap: bool_attribute(empty, "wrap")?.unwrap_or(false),
+                            scroll: bool_attribute(empty, "scroll")?.unwrap_or(false),
+                            grow: bool_attribute(empty, "grow")?.unwrap_or(false),
                             actions: Vec::new(),
                             children: Vec::new(),
                         };
@@ -396,6 +440,33 @@ fn attribute(element: &BytesStart<'_>, wanted_name: &str) -> Result<Option<Strin
     Ok(None)
 }
 
+fn bool_attribute(element: &BytesStart<'_>, wanted_name: &str) -> Result<Option<bool>, ManifestError> {
+    Ok(match attribute(element, wanted_name)? {
+        Some(value) => Some(matches!(value.as_str(), "true" | "1" | "yes" | "on")),
+        None => None,
+    })
+}
+
+fn f32_attribute(element: &BytesStart<'_>, wanted_name: &str) -> Result<Option<f32>, ManifestError> {
+    match attribute(element, wanted_name)? {
+        Some(value) => value
+            .parse::<f32>()
+            .map(Some)
+            .map_err(|error| ManifestError::Xml(format!("invalid `{wanted_name}` value: {error}"))),
+        None => Ok(None),
+    }
+}
+
+fn usize_attribute(element: &BytesStart<'_>, wanted_name: &str) -> Result<Option<usize>, ManifestError> {
+    match attribute(element, wanted_name)? {
+        Some(value) => value
+            .parse::<usize>()
+            .map(Some)
+            .map_err(|error| ManifestError::Xml(format!("invalid `{wanted_name}` value: {error}"))),
+        None => Ok(None),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -459,5 +530,30 @@ mod tests {
         assert_eq!(view.role, "dialog");
         let input = &view.children[0];
         assert_eq!(input.bind, Some("draft.recipient".into()));
+    }
+
+    #[test]
+    fn parses_layout_hints_on_containers() {
+        let xml = r#"
+            <app id="notes" name="Notes">
+              <screen id="workspace" role="screen" label="Workspace" layout="column" gap="18">
+                <group id="toolbar" role="group" label="" layout="row" gap="10" padding="16" wrap="true" />
+                <component id="note-grid" role="list" label="Notes" layout="grid" columns="3" scroll="true" max-height="320" />
+              </screen>
+            </app>
+        "#;
+
+        let manifest = parse_manifest(xml).expect("manifest with layout hints should parse");
+        let screen = &manifest.nodes[0];
+        assert_eq!(screen.layout.as_deref(), Some("column"));
+        assert_eq!(screen.gap, Some(18.0));
+        let toolbar = &screen.children[0];
+        assert_eq!(toolbar.layout.as_deref(), Some("row"));
+        assert_eq!(toolbar.padding, Some(16.0));
+        assert!(toolbar.wrap);
+        let grid = &screen.children[1];
+        assert_eq!(grid.columns, Some(3));
+        assert!(grid.scroll);
+        assert_eq!(grid.max_height, Some(320.0));
     }
 }

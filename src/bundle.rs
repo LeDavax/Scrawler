@@ -3,6 +3,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+const FALLBACK_ICON_PNG: &[u8] = include_bytes!("../assets/app-icon.png");
+
 pub fn bundle(app_xml_path: &str, target_os: Option<&str>) -> Result<PathBuf, String> {
     let app_path = Path::new(app_xml_path);
     let app_dir = match app_path.parent() {
@@ -258,6 +260,62 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
     Ok(())
 }
 
+fn convert_icon_to_icns_from_path(
+    png_path: &Path,
+    resources: &Path,
+) -> Result<String, String> {
+    let iconset_dir = resources.join("AppIcon.iconset");
+    fs::create_dir_all(&iconset_dir)
+        .map_err(|e| format!("Cannot create iconset dir: {e}"))?;
+
+    let sizes: &[(u32, &str)] = &[
+        (16, "icon_16x16.png"),
+        (32, "icon_16x16@2x.png"),
+        (32, "icon_32x32.png"),
+        (64, "icon_32x32@2x.png"),
+        (128, "icon_128x128.png"),
+        (256, "icon_128x128@2x.png"),
+        (256, "icon_256x256.png"),
+        (512, "icon_256x256@2x.png"),
+        (512, "icon_512x512.png"),
+        (1024, "icon_512x512@2x.png"),
+    ];
+
+    for (size, name) in sizes {
+        let output = iconset_dir.join(name);
+        let status = Command::new("sips")
+            .args([
+                "-z", &size.to_string(), &size.to_string(),
+                png_path.to_str().unwrap_or_default(),
+                "--out", output.to_str().unwrap_or_default(),
+            ])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+
+        if status.is_err() || !status.unwrap().success() {
+            let _ = fs::remove_dir_all(&iconset_dir);
+            return Ok("app-icon.png".to_string());
+        }
+    }
+
+    let icns_path = resources.join("AppIcon.icns");
+    let status = Command::new("iconutil")
+        .args([
+            "-c", "icns",
+            iconset_dir.to_str().unwrap_or_default(),
+            "-o", icns_path.to_str().unwrap_or_default(),
+        ])
+        .status();
+
+    let _ = fs::remove_dir_all(&iconset_dir);
+
+    match status {
+        Ok(s) if s.success() => Ok("AppIcon.icns".to_string()),
+        _ => Ok("app-icon.png".to_string()),
+    }
+}
+
 fn convert_icon_to_icns(
     app_dir: &Path,
     resources: &Path,
@@ -267,8 +325,10 @@ fn convert_icon_to_icns(
     let source_path = app_dir.join(icon_source);
 
     if !source_path.exists() {
-        eprintln!("Warning: icon file '{}' not found, bundle will have no icon", source_path.display());
-        return Ok(icon_source.to_string());
+        let fallback_path = resources.join("app-icon.png");
+        fs::write(&fallback_path, FALLBACK_ICON_PNG)
+            .map_err(|e| format!("Cannot write fallback icon: {e}"))?;
+        return convert_icon_to_icns_from_path(&fallback_path, resources);
     }
 
     // If already .icns, just copy

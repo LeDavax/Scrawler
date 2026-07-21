@@ -1,106 +1,246 @@
 # Scrawler
 
-Scrawler is a portable runtime for applications that want to be genuinely
-agent-native. Instead of exposing screenshots, DOM selectors, or a bespoke API
-for every agent, an application declares a semantic tree and typed actions.
+Scrawler is a local runtime for semantic, agent-friendly applications.
 
-This repository is being built as a hackathon prototype. It reads and validates
-a semantic XML manifest, then exposes its semantic tree through a local MCP
-server. Declared actions run in a restricted local Lua runtime and return a
-portable structured effect.
+An app is described in XML, implemented in Lua, and exposed simultaneously as a native window and through MCP. The goal is to let an agent work against a declared semantic tree instead of screen scraping or ad hoc integrations.
 
-## Current milestone
+## What Scrawler does
+
+Scrawler reads an `app.xml` manifest, validates it, and builds a semantic tree made of `screen`, `view`, `group`, `component`, and `dialog` nodes.
+
+Each declared action points to a Lua handler in `actions.lua`. The handler returns structured effects, and the runtime applies those effects to the native UI or the MCP server’s local copy of the app state.
+
+The repository includes a complete example in:
+
+- [`examples/mail/app.xml`](./examples/mail/app.xml)
+- [`examples/mail/actions.lua`](./examples/mail/actions.lua)
+
+## Project structure
 
 ```text
-app.xml + actions.lua -> Scrawler parser -> semantic tree -> native UI or MCP -> structured effect
+my-app/
+├── app.xml
+├── actions.lua
+└── manifest.yml   # optional
 ```
 
-Run the included reference manifest:
+- `app.xml` defines the semantic UI tree, runtime state, and actions.
+- `actions.lua` contains the sandboxed Lua handlers.
+- `manifest.yml` is optional and controls native appearance, packaging metadata, and the embedded HTTP MCP port.
+
+## Installation
+
+### macOS (Apple Silicon)
 
 ```bash
-cargo run -- inspect examples/mail/app.xml
+curl -fsSL https://raw.githubusercontent.com/LeDavax/Scrawler/main/install.sh | sh
 ```
 
-The command prints the semantic tree that a future MCP client will discover.
-No API key, native executable, or operating-system-specific integration is
-required for this step.
-
-## Native reference application
-
-Scrawler can render the declared application as a native Rust window:
+Or manually:
 
 ```bash
-cargo run -- run examples/mail/app.xml
+curl -L https://github.com/LeDavax/Scrawler/releases/latest/download/scrawler-darwin-aarch64.tar.gz | tar -xz
+sudo mv scrawler /usr/local/bin/scrawler
+xattr -d com.apple.quarantine /usr/local/bin/scrawler
 ```
 
-The XML describes the screen and its buttons. The renderer creates parameter
-fields from the typed action parameters; when the user clicks a button, the
-same manifest validation and Lua handler contract is used. The returned effect
-is applied by the native application (the mail example opens its compose
-window). This is the user-facing application, not an MCP management dashboard.
-
-## Local MCP server
-
-Start the stdio MCP server with the same manifest:
+### Linux (x86_64)
 
 ```bash
-cargo run -- serve examples/mail/app.xml
+curl -fsSL https://raw.githubusercontent.com/LeDavax/Scrawler/main/install.sh | sh
 ```
 
-It exposes two tools:
-
-- `scrawler_get_semantic_tree` returns the complete tree.
-- `scrawler_invoke_action` validates that a node, action, and its typed
-  arguments were declared in the manifest, then calls the declared Lua handler.
-
-The process writes only JSON-RPC protocol messages to standard output. This is
-important when configuring it in an MCP host.
-
-### Making MCP actions visible in the native application
-
-Start the native app first:
+Or manually:
 
 ```bash
-cargo run -- run examples/mail/app.xml
+curl -L https://github.com/LeDavax/Scrawler/releases/latest/download/scrawler-linux-x86_64.tar.gz | tar -xz
+sudo mv scrawler /usr/local/bin/scrawler
 ```
 
-Then let Claude, VS Code, or another MCP host start `scrawler serve ...` as
-usual. After a validated Lua action, the MCP bridge forwards its structured
-effect over a loopback-only local channel to the open window. The tool result
-reports `visual_sync: "delivered to the open native application"` when the
-effect was rendered.
+### Windows (x86_64)
 
-The mail reference app currently declares these agent and user capabilities:
+Download [`scrawler-windows-x86_64.zip`](https://github.com/LeDavax/Scrawler/releases/latest/download/scrawler-windows-x86_64.zip), extract it, and move `scrawler.exe` to a folder in your `PATH`.
 
-- `compose_message(recipient)`
-- `set_body(body)`
-- `send_message()`
+### Windows (ARM64)
 
-## Manifest model
+Download [`scrawler-windows-aarch64.zip`](https://github.com/LeDavax/Scrawler/releases/latest/download/scrawler-windows-aarch64.zip), extract it, and move `scrawler.exe` to a folder in your `PATH`.
 
-`app.xml` declares components and their allowed capabilities and references a
-nearby `actions.lua` file with `actions="actions.lua"`. `actions.lua` holds the
-implementation for declared handlers. Scrawler checks the manifest before
-dispatching a Lua function, so an agent never receives arbitrary handler access.
+## Usage
 
-Lua returns an effect rather than manipulating a platform directly:
+All commands work with or without a path. If no path is given, Scrawler looks for `app.xml` in the current directory.
 
-```json
-{
-  "effect": "ui.open",
-  "target": "compose-window",
-  "payload": { "recipient": "alice@example.com" }
-}
+```bash
+cd my-app/
+
+scrawler run        # open the native app
+scrawler build      # package as .app / .exe / AppDir
+scrawler serve      # start an MCP server over stdio
+scrawler inspect    # print the semantic tree as JSON
 ```
 
-The initial runtime provides only `context.ui.open`. Lua's `io`, `os`,
-`package`, and `debug` libraries are not loaded.
+Or pass a path explicitly:
 
-## Roadmap
+```bash
+scrawler run path/to/app.xml
+```
 
-1. Parse and validate XML manifests. **Current**
-2. Add a local MCP server that exposes the semantic tree. **Current**
-3. Add a restricted Lua runtime for declared actions. **Current**
-4. Add a native reference UI rendered from the semantic tree. **Current**
-5. Add a local IPC bridge so an external MCP client controls the already-open
-   native window and shares its visible state.
+### Start the MCP server over stdio
+
+Expose the app to an MCP host over stdin/stdout JSON-RPC:
+
+```bash
+scrawler serve
+```
+
+This mode exposes two tools:
+
+- `scrawler_get_semantic_tree`
+- `scrawler_invoke_action`
+
+Recommended flow:
+
+1. Call `scrawler_get_semantic_tree`.
+2. Read the relevant `node_id` and `action_id` values.
+3. Call `scrawler_invoke_action` with validated arguments.
+
+If the native app is running at the same time, effects can be forwarded to it through the local IPC bridge. If it is not running, the MCP server still applies effects to its own local state and returns a `ui offline` warning.
+
+## How it works
+
+1. `app.xml` is parsed and validated.
+2. The semantic tree is built.
+3. Lua handlers are loaded from `actions.lua`.
+4. A handler receives `arguments` and a restricted `context`.
+5. The handler returns one or more JSON-compatible effects.
+6. The renderer or MCP server applies those effects locally.
+
+## Lua runtime
+
+The Lua runtime is intentionally restricted.
+
+Available standard libraries:
+
+- `table`
+- `string`
+- `math`
+
+Unavailable standard libraries:
+
+- `io`
+- `os`
+- `package`
+- `debug`
+
+Handlers cannot spawn processes or load arbitrary code. Side effects go through the effect system and `context.storage`.
+
+## Context API
+
+The runtime exposes a generic context object to Lua handlers.
+
+### State
+
+- `context.state.get(key)`
+- `context.state.set(key, value)`
+- `context.state.toggle(key)`
+
+### UI and navigation
+
+- `context.view.open(id, payload)`
+- `context.view.close(id)`
+- `context.screen.navigate(screen_id)`
+
+### Semantic mutations
+
+- `context.manifest.node.set_label(id, label)`
+- `context.manifest.node.set_visible(id, visible)`
+- `context.manifest.node.set_icon(id, icon_name)`
+- `context.manifest.select.set_options(id, options)`
+
+### Notifications and OS actions
+
+- `context.notification.show(message)`
+- `context.notification.os(title, body)`
+- `context.browser.open(url)`
+- `context.clipboard.write(text)`
+- `context.clipboard.read()`
+- `context.sound.play(name)`
+- `context.window.set_title(title)`
+- `context.window.set_badge(count)`
+- `context.window.minimize()`
+- `context.window.close()`
+- `context.file.save(filename, content)`
+
+### Data and utilities
+
+- `context.date.now()`
+- `context.date.format(timestamp, pattern)`
+- `context.json.encode(table)`
+- `context.json.decode(string)`
+- `context.form.reset(node_id)`
+
+### Persistent storage
+
+Storage is namespaced by `app.id` and stored in the OS application data directory.
+
+- `context.storage.get(key)`
+- `context.storage.get_all()`
+- `context.storage.set(key, value)`
+- `context.storage.delete(key)`
+- `context.storage.file.read(path)`
+- `context.storage.file.write(path, content)`
+- `context.storage.file.delete(path)`
+- `context.storage.file.list(path)`
+- `context.storage.file.mkdir(path)`
+
+### HTTP
+
+- `context.http.fetch(url, options)`
+- `context.http.fetch_async(url, options, callback)`
+- `context.http.ws.connect(id, url, options)`
+- `context.http.ws.send(id, data)`
+- `context.http.ws.close(id)`
+
+## Bundling
+
+`scrawler build` packages the app for the current target or a target you pass explicitly.
+
+```bash
+scrawler build examples/mail/app.xml
+```
+
+Target-specific output:
+
+- macOS: `.app` bundle plus `.dmg`
+- Windows: a bundled folder containing the `.exe`
+- Linux: an `.AppDir` layout, ready for AppImage tooling
+
+## Example app
+
+The mail example demonstrates the full model:
+
+- a semantic inbox screen
+- a compose dialog
+- fields bound to local state
+- a select control populated from declared options
+- Lua handlers that open and close views, update state, and trigger notifications
+
+Example handler:
+
+```lua
+function compose_message(arguments, context)
+  return context.view.open("composer", {
+    state = { ["draft.recipient"] = arguments.recipient or "" }
+  })
+end
+```
+
+## Useful commands
+
+```bash
+scrawler run     [app.xml]
+scrawler build   [app.xml]
+scrawler serve   [app.xml]
+scrawler inspect [app.xml]
+```
+
+If no path is provided, Scrawler looks for `app.xml` in the current directory.
