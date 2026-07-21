@@ -1195,7 +1195,7 @@ impl SemanticApplication {
                                                 .color(accent),
                                         );
                                         ui.label(
-                                            egui::RichText::new("Connecteur IA en ligne")
+                                            egui::RichText::new("AI Connector online")
                                                 .font(FontId::proportional(11.0))
                                                 .color(accent),
                                         );
@@ -1206,7 +1206,7 @@ impl SemanticApplication {
                             if btn_resp.hovered() {
                                 ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                             }
-                            if btn_resp.on_hover_text("Paramètres de connexion").clicked() {
+                            if btn_resp.on_hover_text("Connection settings").clicked() {
                                 self.mcp_modal_open = true;
                             }
                         });
@@ -1284,14 +1284,14 @@ impl SemanticApplication {
                     ui.add_space(6.0);
                     ui.vertical(|ui| {
                         ui.label(
-                            egui::RichText::new("Connecteur IA")
+                            egui::RichText::new("AI Connector")
                                 .font(FontId::proportional(17.0))
                                 .color(pal.text_primary)
                                 .strong(),
                         );
                         ui.label(
                             egui::RichText::new(format!(
-                                "Connectez un agent IA à {app_name} via MCP."
+                                "Connect an AI agent to {app_name} via MCP."
                             ))
                             .font(FontId::proportional(13.0))
                             .color(pal.text_secondary),
@@ -1350,7 +1350,7 @@ impl SemanticApplication {
                                         ui.ctx()
                                             .set_cursor_icon(egui::CursorIcon::PointingHand);
                                     }
-                                    if copy_btn.on_hover_text("Copier l'URL").clicked() {
+                                    if copy_btn.on_hover_text("Copy URL").clicked() {
                                         if let Ok(mut cb) = arboard::Clipboard::new() {
                                             let _ = cb.set_text(&url);
                                         }
@@ -1379,7 +1379,7 @@ impl SemanticApplication {
                         );
                         ui.add_space(6.0);
                         ui.label(
-                            egui::RichText::new("Ou dans .mcp.json :")
+                            egui::RichText::new("Or in .mcp.json:")
                                 .font(FontId::proportional(11.5))
                                 .color(pal.text_secondary),
                         );
@@ -1465,7 +1465,7 @@ impl SemanticApplication {
                 // ── Footer ───────────────────────────────────────────────
                 ui.horizontal(|ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let btn_text = egui::RichText::new("Fermer")
+                        let btn_text = egui::RichText::new("Close")
                             .font(FontId::proportional(13.0))
                             .color(pal.text_secondary);
                         let close_btn =
